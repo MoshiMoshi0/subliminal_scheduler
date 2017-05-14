@@ -89,7 +89,8 @@ class ScanJob(job.JobBase):
         videos = []
         ignored_videos = []
 
-        region.configure('dogpile.cache.dbm', expiration_time=timedelta(days=30), arguments={'filename': 'subliminal.dbm', 'lock_factory': MutexLock})
+        if not region.is_configured:
+            region.configure('dogpile.cache.dbm', expiration_time=timedelta(days=30), arguments={'filename': 'subliminal.dbm', 'lock_factory': MutexLock})
 
         # scan videos
         scanned_videos = scan_videos(scan_path, age=age)
