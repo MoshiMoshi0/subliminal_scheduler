@@ -13,6 +13,7 @@ from dogpile.util.readwrite_lock import ReadWriteMutex
 from subliminal import (AsyncProviderPool, Episode, Movie, Video, check_video, get_scores,
                         refine, region, save_subtitles, scan_videos)
 from subliminal.core import search_external_subtitles
+from subliminal.subtitle import get_subtitle_path
 
 from plexapi.server import PlexServer
 
@@ -150,7 +151,7 @@ class ScanJob(job.JobBase):
                 total_subtitles += len(saved_subtitles)
 
                 for key, group in groupby(saved_subtitles, lambda x: x.provider_name):
-                    result['subtitles'][os.path.split(v.name)[1]][key] = len(list(group))
+                    result['subtitles'][key] = [get_subtitle_path(os.path.split(v.name)[1], s.language) for s in list(group)]
 
                 if plex and len(saved_subtitles) > 0:
                     #plex_video = plex.library.section('TV Shows').search(title=v.series, year=v.year, maxresults=1)[0].episode(season=v.season, episode=v.episode)
