@@ -176,6 +176,7 @@ class ScanJob(job.JobBase):
                         if plex_item:
                             plex_item.refresh()
                             result['plex']['refreshed'] = result['plex'].get('refreshed', []) + ['%s%s' % (repr(plex_item), repr(video))]
+                            item_found = True
 
                     if not item_found:
                         result['plex']['failed'] = result['plex'].get('failed', []) + [repr(video)]
