@@ -17,6 +17,7 @@ from subliminal.subtitle import get_subtitle_path
 
 from plexapi.server import PlexServer
 from plexapi.exceptions import NotFound
+from plexapi.library import MovieSection, ShowSection
 
 from ndscheduler import job
 
@@ -137,32 +138,47 @@ class ScanJob(job.JobBase):
             # download best subtitles
             downloaded_subtitles = defaultdict(list)
             with AsyncProviderPool(max_workers=max_workers, providers=providers, provider_configs=provider_configs) as p:
-                for v in videos:
-                    scores = get_scores(v)
-                    subtitles = p.download_best_subtitles(p.list_subtitles(v, languages - v.subtitle_languages), v, languages, min_score=scores['hash'] * min_score / 100)
-                    downloaded_subtitles[v] = subtitles
+                for video in videos:
+                    scores = get_scores(video)
+                    subtitles_to_download = p.list_subtitles(video, languages - video.subtitle_languages)
+                    downloaded_subtitles[video] = p.download_best_subtitles(subtitles_to_download, video, languages, min_score=scores['hash'] * min_score / 100)
 
                 if p.discarded_providers:
                     result['providers']['discarded'] = p.discarded_providers
 
             # save subtitles
             total_subtitles = 0
-            for v, subtitles in downloaded_subtitles.items():
-                saved_subtitles = save_subtitles(v, subtitles, directory=None, encoding=encoding)
+            for video, subtitles in downloaded_subtitles.items():
+                saved_subtitles = save_subtitles(video, subtitles, directory=None, encoding=encoding)
                 total_subtitles += len(saved_subtitles)
 
                 for key, group in groupby(saved_subtitles, lambda x: x.provider_name):
-                    result['subtitles'][key] = [get_subtitle_path(os.path.split(v.name)[1], s.language) for s in list(group)]
+                    subtitle_filenames = [get_subtitle_path(os.path.split(video.name)[1], s.language) for s in list(group)]
+                    result['subtitles'][key] = result['subtitles'].get(key, []) + subtitle_filenames
 
-                if plex and len(saved_subtitles) > 0:
-                    try:
-                        #plex_video = plex.library.section('TV Shows').search(title=v.series, year=v.year, maxresults=1)[0].episode(season=v.season, episode=v.episode)
-                        plex_video = plex.library.section('TV Shows').search(title=v.series, year=v.year, maxresults=1)[0].episode(title=v.title)
-                        if plex_video:
-                            plex_video.refresh()
-                            result['plex']['refreshed'] = result['plex'].get('refreshed', []) + [repr(v)]
-                    except NotFound:
-                        result['plex']['failed'] = result['plex'].get('failed', []) + [repr(v)]
+                if plex and saved_subtitles:
+                    item_found = False
+                    for section in plex.library.sections():
+                        try:
+                            if isinstance(section, MovieSection) and isinstance(video, Movie):
+                                plex_item = section.search(title=video.title, year=video.year, libtype='movie', sort='addedAt:desc', maxresults=1)[0]
+                            elif isinstance(section, ShowSection) and isinstance(video, Episode):
+                                plex_show = section.search(title=video.series, year=video.year, libtype='show', sort='addedAt:desc', maxresults=1)[0]
+                                plex_episodes = [e for e in plex_show.episodes() if int(e.seasonNumber) == video.season and int(e.index) == video.episode]
+                                if len(plex_episodes) != 1:
+                                    raise NotFound
+                                plex_item = plex_episodes[0]
+                            else:
+                                continue
+                        except NotFound:
+                            continue
+
+                        if plex_item:
+                            plex_item.refresh()
+                            result['plex']['refreshed'] = result['plex'].get('refreshed', []) + ['%s%s' % (repr(plex_item), repr(video))]
+
+                    if not item_found:
+                        result['plex']['failed'] = result['plex'].get('failed', []) + [repr(video)]
 
             result['subtitles']['total'] = total_subtitles
 
