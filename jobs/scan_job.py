@@ -39,6 +39,26 @@ class MutexLock(AbstractFileLock):
 
 class ScanJob(job.JobBase):
     @classmethod
+    def get_scheduled_description(cls):
+        return 'pid: %s' % (os.getpid(), )
+
+    @classmethod
+    def get_scheduled_error_description(cls):
+        return 'pid: %s | exception: %s' % (os.getpid(), sys.exc_info()[0].__name__)
+
+    @classmethod
+    def get_running_description(cls):
+        return 'pid: %s' % (os.getpid(), )
+
+    @classmethod
+    def get_failed_description(cls):
+        return 'pid: %s | exception: %s' % (os.getpid(), sys.exc_info()[0].__name__)
+
+    @classmethod
+    def get_succeeded_description(cls, result=None):
+        return 'pid: %s | downloaded: %s' % (os.getpid(), str(result['subtitles']['total']))
+
+    @classmethod
     def meta_info(cls):
         return {
             'job_class_string': '%s.%s' % (cls.__module__, cls.__name__),
