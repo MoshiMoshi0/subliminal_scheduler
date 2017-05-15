@@ -127,7 +127,7 @@ class ScanJob(job.JobBase):
                 ignored_videos.append(video)
 
         if videos:
-            result['videos']['collected'] = len(videos)
+            result['videos']['collected'] = [os.path.split(v.name)[1] for v in videos]
         if ignored_videos:
             result['videos']['ignored'] = len(ignored_videos)
 
