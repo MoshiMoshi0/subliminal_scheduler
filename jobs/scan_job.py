@@ -16,6 +16,7 @@ from subliminal.core import search_external_subtitles
 from subliminal.subtitle import get_subtitle_path
 
 from plexapi.server import PlexServer
+from plexapi.exceptions import NotFound
 
 from ndscheduler import job
 
@@ -154,18 +155,14 @@ class ScanJob(job.JobBase):
                     result['subtitles'][key] = [get_subtitle_path(os.path.split(v.name)[1], s.language) for s in list(group)]
 
                 if plex and len(saved_subtitles) > 0:
-                    #plex_video = plex.library.section('TV Shows').search(title=v.series, year=v.year, maxresults=1)[0].episode(season=v.season, episode=v.episode)
-                    plex_video = plex.library.section('TV Shows').search(title=v.series, year=v.year, maxresults=1)[0].episode(title=v.title)
-                    plex_video_text = '%s (%s) S%02dE%02d - %s' % (v.series, v.year, v.season, v.episode, v.title)
-                    if plex_video:
-                        plex_video.refresh()
-                        if not result['plex']['refreshed']:
-                            result['plex']['refreshed'] = []
-                        result['plex']['refreshed'].append(plex_video_text)
-                    else:
-                        if not result['plex']['failed']:
-                            result['plex']['failed'] = []
-                        result['plex']['failed'].append(plex_video_text)
+                    try:
+                        #plex_video = plex.library.section('TV Shows').search(title=v.series, year=v.year, maxresults=1)[0].episode(season=v.season, episode=v.episode)
+                        plex_video = plex.library.section('TV Shows').search(title=v.series, year=v.year, maxresults=1)[0].episode(title=v.title)
+                        if plex_video:
+                            plex_video.refresh()
+                            result['plex']['refreshed'] = result['plex'].get('refreshed', []) + [repr(v)]
+                    except NotFound:
+                        result['plex']['failed'] = result['plex'].get('failed', []) + [repr(v)]
 
             result['subtitles']['total'] = total_subtitles
 
