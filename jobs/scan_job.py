@@ -2,9 +2,9 @@ from __future__ import division
 from collections import defaultdict
 from datetime import timedelta, datetime
 from itertools import groupby
-import logging
 import os
 import codecs
+import sys
 
 from babelfish import Language
 from dogpile.cache.backends.file import AbstractFileLock
@@ -119,16 +119,16 @@ class ScanJob(job.JobBase):
             video.subtitle_languages |= set(search_external_subtitles(video.name).values())
             if check_video(video, languages=languages, age=age, undefined=False):
                 refine(video)
-                if len(languages - video.subtitle_languages) > 0:
+                if languages - video.subtitle_languages:
                     videos.append(video)
                 else:
                     ignored_videos.append(video)
             else:
                 ignored_videos.append(video)
-            
-        if len(videos) > 0:
+
+        if videos:
             result['videos']['collected'] = len(videos)
-        if len(ignored_videos) > 0:
+        if ignored_videos:
             result['videos']['ignored'] = len(ignored_videos)
 
         if videos:
@@ -161,11 +161,11 @@ class ScanJob(job.JobBase):
                         if not result['plex']['refreshed']:
                             result['plex']['refreshed'] = []
                         result['plex']['refreshed'].append(plex_video_text)
-                    else:                    
+                    else:
                         if not result['plex']['failed']:
                             result['plex']['failed'] = []
                         result['plex']['failed'].append(plex_video_text)
-            
+
             result['subtitles']['total'] = total_subtitles
 
         scan_end = datetime.now()
