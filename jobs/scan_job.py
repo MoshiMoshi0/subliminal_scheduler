@@ -144,7 +144,7 @@ class ScanJob(job.JobBase):
                     downloaded_subtitles[video] = p.download_best_subtitles(subtitles_to_download, video, languages, min_score=scores['hash'] * min_score / 100)
 
                 if p.discarded_providers:
-                    result['providers']['discarded'] = p.discarded_providers
+                    result['providers']['discarded'] = list(p.discarded_providers)
 
             # save subtitles
             total_subtitles = 0
