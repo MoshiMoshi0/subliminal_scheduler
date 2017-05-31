@@ -16,7 +16,7 @@ from subliminal.core import search_external_subtitles
 from subliminal.subtitle import get_subtitle_path
 
 from plexapi.server import PlexServer
-from plexapi.exceptions import NotFound
+from plexapi.exceptions import BadRequest, NotFound
 from plexapi.library import MovieSection, ShowSection
 
 from ndscheduler import job
@@ -171,6 +171,8 @@ class ScanJob(job.JobBase):
                             else:
                                 continue
                         except NotFound:
+                            continue
+                        except BadRequest:
                             continue
 
                         if plex_item:
