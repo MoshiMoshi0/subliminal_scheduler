@@ -5,10 +5,12 @@ from itertools import groupby
 import os
 import codecs
 import sys
+import hashlib
 
 from babelfish import Language
 from dogpile.cache.backends.file import AbstractFileLock
 from dogpile.util.readwrite_lock import ReadWriteMutex
+from tinydb import TinyDB, Query
 
 from subliminal import (AsyncProviderPool, Episode, Movie, Video, check_video, get_scores,
                         refine, region, save_subtitles, scan_videos)
@@ -96,6 +98,8 @@ class ScanJob(job.JobBase):
         if not provider_configs:
             provider_configs = {}
 
+        subtitle_db = TinyDB('subtitle_db.json')
+
         __tree_dict = lambda: defaultdict(__tree_dict)
         result = __tree_dict()
 
@@ -149,6 +153,24 @@ class ScanJob(job.JobBase):
             # save subtitles
             total_subtitles = 0
             for video, subtitles in downloaded_subtitles.items():
+                with subtitle_db.table('downloaded') as t:
+                    with Query() as q:
+                        discarded_subtitles = list()
+                        discarded_subtitles_info = list()
+
+                        for s in subtitles:
+                            subtitle_hash = hashlib.sha256(s.content).hexdigest()
+                            subtitle_file = get_subtitle_path(os.path.split(video.name)[1], s.language)
+                            dbo = {'hash': subtitle_hash, 'file': subtitle_file}
+                            if len(t.search((q.hash == subtitle_hash) & (q.file == subtitle_file))) > 0:
+                                discarded_subtitles.append(s)
+                                discarded_subtitles_info.append(dbo)
+                            else:
+                                t.insert(dbo)
+
+                        subtitles = [x for x in subtitles if x not in discarded_subtitles]
+                        result['subtitles']['discarded'] = result['subtitles'].get('discarded', []) + discarded_subtitles_info
+
                 saved_subtitles = save_subtitles(video, subtitles, directory=None, encoding=encoding)
                 total_subtitles += len(saved_subtitles)
 
