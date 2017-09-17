@@ -167,10 +167,9 @@ class ScanJob(job.JobBase):
                             table.insert(dbo)
 
                     downloaded_subtitles[video] = [x for x in subtitles if x not in discarded_subtitles]
-                    if not downloaded_subtitles[video]:
-                        del downloaded_subtitles[video]
-                        
                     result['subtitles']['discarded'] = result['subtitles'].get('discarded', []) + discarded_subtitles_info
+
+            downloaded_subtitles = {k: v for k,v in downloaded_subtitles.iteritems() if v}
 
             # save subtitles
             total_subtitles = 0
