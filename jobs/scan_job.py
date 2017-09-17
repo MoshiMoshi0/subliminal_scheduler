@@ -61,7 +61,8 @@ class ScanJob(job.JobBase):
 
     @classmethod
     def get_succeeded_description(cls, result=None):
-        return 'pid: %s | downloaded: %s' % (os.getpid(), str(result['subtitles']['total']))
+        total = result['subtitles']['total'] if result['subtitles']['total'] else 0
+        return 'pid: %s | downloaded: %s' % (os.getpid(), str(total))
 
     @classmethod
     def meta_info(cls):
