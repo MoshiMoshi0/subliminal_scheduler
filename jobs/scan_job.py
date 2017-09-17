@@ -98,8 +98,6 @@ class ScanJob(job.JobBase):
         if not provider_configs:
             provider_configs = {}
 
-        subtitle_db = TinyDB('subtitle_db.json')
-
         __tree_dict = lambda: defaultdict(__tree_dict)
         result = __tree_dict()
 
@@ -150,27 +148,33 @@ class ScanJob(job.JobBase):
                 if p.discarded_providers:
                     result['providers']['discarded'] = list(p.discarded_providers)
 
+            # filter subtitles
+            with TinyDB('subtitle_db.json') as db:
+                table = db.table('downloaded')
+                query = Query()
+                for video, subtitles in downloaded_subtitles.items():
+                    discarded_subtitles = list()
+                    discarded_subtitles_info = list()
+
+                    for s in subtitles:
+                        subtitle_hash = hashlib.sha256(s.content).hexdigest()
+                        subtitle_file = get_subtitle_path(os.path.split(video.name)[1], s.language)
+                        dbo = {'hash': subtitle_hash, 'file': subtitle_file}
+                        if table.search((query.hash == subtitle_hash) & (query.file == subtitle_file)):
+                            discarded_subtitles.append(s)
+                            discarded_subtitles_info.append(dbo)
+                        else:
+                            table.insert(dbo)
+
+                    downloaded_subtitles[video] = [x for x in subtitles if x not in discarded_subtitles]
+                    if not downloaded_subtitles[video]:
+                        del downloaded_subtitles[video]
+                        
+                    result['subtitles']['discarded'] = result['subtitles'].get('discarded', []) + discarded_subtitles_info
+
             # save subtitles
             total_subtitles = 0
             for video, subtitles in downloaded_subtitles.items():
-                with subtitle_db.table('downloaded') as t:
-                    with Query() as q:
-                        discarded_subtitles = list()
-                        discarded_subtitles_info = list()
-
-                        for s in subtitles:
-                            subtitle_hash = hashlib.sha256(s.content).hexdigest()
-                            subtitle_file = get_subtitle_path(os.path.split(video.name)[1], s.language)
-                            dbo = {'hash': subtitle_hash, 'file': subtitle_file}
-                            if len(t.search((q.hash == subtitle_hash) & (q.file == subtitle_file))) > 0:
-                                discarded_subtitles.append(s)
-                                discarded_subtitles_info.append(dbo)
-                            else:
-                                t.insert(dbo)
-
-                        subtitles = [x for x in subtitles if x not in discarded_subtitles]
-                        result['subtitles']['discarded'] = result['subtitles'].get('discarded', []) + discarded_subtitles_info
-
                 saved_subtitles = save_subtitles(video, subtitles, directory=None, encoding=encoding)
                 total_subtitles += len(saved_subtitles)
 
