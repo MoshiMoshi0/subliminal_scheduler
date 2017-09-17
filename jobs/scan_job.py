@@ -169,7 +169,7 @@ class ScanJob(job.JobBase):
                     downloaded_subtitles[video] = [x for x in subtitles if x not in discarded_subtitles]
                     result['subtitles']['discarded'] = result['subtitles'].get('discarded', []) + discarded_subtitles_info
 
-            downloaded_subtitles = {k: v for k,v in downloaded_subtitles.iteritems() if v}
+            downloaded_subtitles = {k: v for k,v in downloaded_subtitles.items() if v}
 
             # save subtitles
             total_subtitles = 0
