@@ -174,16 +174,18 @@ class ScanJob(job.JobBase):
             downloaded_subtitles = {k: v for k,v in downloaded_subtitles.items() if v}
 
             # save subtitles
-            total_subtitles = 0
+            saved_subtitles = {}
             for video, subtitles in downloaded_subtitles.items():
-                saved_subtitles = save_subtitles(video, subtitles, directory=None, encoding=encoding)
-                total_subtitles += len(saved_subtitles)
+                saved_subtitles[video] = save_subtitles(video, subtitles, directory=None, encoding=encoding)
 
-                for key, group in groupby(saved_subtitles, lambda x: x.provider_name):
+                for key, group in groupby(saved_subtitles[video], lambda x: x.provider_name):
                     subtitle_filenames = [get_subtitle_path(os.path.split(video.name)[1], s.language) for s in list(group)]
                     result['subtitles'][key] = result['subtitles'].get(key, []) + subtitle_filenames
+            result['subtitles']['total'] = sum(len(v) for v in saved_subtitles.values())
 
-                if plex and saved_subtitles:
+            # refresh plex
+            for video, subtitles in saved_subtitles.items():
+                if plex and subtitles:
                     item_found = False
                     for section in plex.library.sections():
                         try:
@@ -210,7 +212,6 @@ class ScanJob(job.JobBase):
                     if not item_found:
                         result['plex']['failed'] = result['plex'].get('failed', []) + [repr(video)]
 
-            result['subtitles']['total'] = total_subtitles
 
         scan_end = datetime.now()
         result['meta']['start'] = scan_start.isoformat()
