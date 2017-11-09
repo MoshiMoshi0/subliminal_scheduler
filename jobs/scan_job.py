@@ -23,6 +23,8 @@ from plexapi.library import MovieSection, ShowSection
 
 from ndscheduler import job
 
+import aeidon
+
 class MutexLock(AbstractFileLock):
     """:class:`MutexLock` is a thread-based rw lock based on :class:`dogpile.core.ReadWriteMutex`."""
     def __init__(self, filename):
@@ -212,6 +214,30 @@ class ScanJob(job.JobBase):
                     if not item_found:
                         result['plex']['failed'] = result['plex'].get('failed', []) + [repr(video)]
 
+            # convert subtitles
+            for video, subtitles in saved_subtitles.items():
+                target_format = aeidon.formats.SUBRIP
+                for s in subtitles:
+                    subtitle_path = get_subtitle_path(video.name, s.language)
+                    source_format = aeidon.util.detect_format(subtitle_path, encoding)
+                    source_file = aeidon.files.new(source_format, subtitle_path, aeidon.encodings.detect_bom(subtitle_path) or encoding)
+
+                    if source_format != target_format:
+                        format_info = {'file': get_subtitle_path(os.path.split(video.name)[1], s.language), 'from': source_format.label, 'to': target_format.label}
+                        result['subtitles']['converted'] = result['subtitles'].get('converted', []) + [format_info]
+
+                    aeidon_subtitles = source_file.read()
+                    for f in [aeidon.formats.SUBRIP, aeidon.formats.MICRODVD, aeidon.formats.MPL2]:
+                        markup = aeidon.markups.new(f)
+                        for s in aeidon_subtitles:
+                            s.main_text = markup.decode(s.main_text)
+
+                    markup = aeidon.markups.new(target_format)
+                    for s in aeidon_subtitles:
+                        s.main_text = markup.encode(s.main_text)
+
+                    target_file = aeidon.files.new(target_format, subtitle_path, encoding)
+                    target_file.write(aeidon_subtitles, aeidon.documents.MAIN)
 
         scan_end = datetime.now()
         result['meta']['start'] = scan_start.isoformat()
