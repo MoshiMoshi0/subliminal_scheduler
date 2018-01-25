@@ -8,8 +8,6 @@ import sys
 import hashlib
 
 from babelfish import Language
-from dogpile.cache.backends.file import AbstractFileLock
-from dogpile.util.readwrite_lock import ReadWriteMutex
 from tinydb import TinyDB, Query
 
 from subliminal import (AsyncProviderPool, Episode, Movie, Video, check_video, get_scores,
@@ -25,24 +23,7 @@ from ndscheduler import job
 
 import aeidon
 
-class MutexLock(AbstractFileLock):
-    """:class:`MutexLock` is a thread-based rw lock based on :class:`dogpile.core.ReadWriteMutex`."""
-    def __init__(self, filename):
-        self.mutex = ReadWriteMutex()
-
-    def acquire_read_lock(self, wait):
-        ret = self.mutex.acquire_read_lock(wait)
-        return wait or ret
-
-    def acquire_write_lock(self, wait):
-        ret = self.mutex.acquire_write_lock(wait)
-        return wait or ret
-
-    def release_read_lock(self):
-        return self.mutex.release_read_lock()
-
-    def release_write_lock(self):
-        return self.mutex.release_write_lock()
+from .mutexlock import MutexLock
 
 class ScanJob(job.JobBase):
     @classmethod
