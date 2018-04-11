@@ -173,13 +173,19 @@ class ScanJob(job.JobBase):
                     for section in plex.library.sections():
                         try:
                             if isinstance(section, MovieSection) and isinstance(video, Movie):
-                                plex_item = section.search(title=video.title, year=video.year, libtype='movie', sort='addedAt:desc', maxresults=1)[0]
-                            elif isinstance(section, ShowSection) and isinstance(video, Episode):
-                                plex_show = section.search(title=video.series, year=video.year, libtype='show', sort='addedAt:desc', maxresults=1)[0]
-                                plex_episodes = [e for e in plex_show.episodes() if int(e.seasonNumber) == video.season and int(e.index) == video.episode]
-                                if len(plex_episodes) != 1:
+                                results = section.search(title=video.title, year=video.year, libtype='movie', sort='addedAt:desc', maxresults=1)
+                                
+                                if not results:
                                     raise NotFound
-                                plex_item = plex_episodes[0]
+
+                                plex_item = results[0]
+                            elif isinstance(section, ShowSection) and isinstance(video, Episode):
+                                results = section.search(title=video.series, year=video.year, libtype='show', sort='addedAt:desc', maxresults=1)
+
+                                if not results:
+                                    raise NotFound
+
+                                plex_item = results[0].episode(season=video.season, episode=video.episode)
                             else:
                                 continue
                         except NotFound:
